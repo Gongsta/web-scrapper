@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup as soup
-from urllib.request import urlopen as uReq
+from urllib.request import urlopen
 import csv
 from datetime import datetime
 
@@ -10,7 +10,7 @@ query = "Software Developer Jobs".replace(" ", "-")
 url = "https://indeed.com/" + query
 url.replace(" ", "-")
 
-uClient= uReq(url)
+uClient= urlopen(url)
 #reading from the page
 page_xml = uClient.read()
 #Closing the client

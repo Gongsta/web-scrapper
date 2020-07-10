@@ -9,19 +9,21 @@ import time
 
 
 # Initializing a Cloud firestore session with service account keys
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/stevengong/Desktop/Projects/miaJS/functions/service-account.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./service-account.json"
 db = firestore.Client()
 
+#Initializing a session for web scraping
+session = HTMLSession()
 
 
-
-def scrape_job_page(url, session):
+def scrape_job_page(url):
 
     # use the session to get the data
     r = session.get(url)
     print("got session")
     # Render the page, up the number on scrolldown to page down multiple times on a page
     r.html.render(sleep=1, keep_page=True, scrolldown=1)
+    print("html rendered")
     soup = bs.BeautifulSoup(r.content, 'html.parser')
 
 
@@ -157,8 +159,6 @@ def uploadToFirebase(job):
 # create the session
 
 if __name__ == "__main__":
-    # Initializing a session for web scraping
-    session = HTMLSession()
     with open("index.csv") as csvfile:
         readCSV = csv.reader(csvfile, delimiter=",")
         count = 0
@@ -167,7 +167,7 @@ if __name__ == "__main__":
             print(count)
 
             try:
-                scrape_job_page(row[0], session)
+                scrape_job_page(row[0])
             except Exception as e:
                 print(e)
 

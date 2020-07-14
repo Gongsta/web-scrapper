@@ -4,8 +4,7 @@ from google.cloud import firestore
 import os
 from jobObject import Job
 from datetime import datetime
-import csv
-import time
+import json
 
 
 # Initializing a Cloud firestore session with service account keys
@@ -16,13 +15,13 @@ db = firestore.Client()
 session = HTMLSession()
 
 
-def scrape_job_page(url):
-
+def scrape_job_page(id):
+    url = "https://www.jobbank.gc.ca/jobsearch/jobposting/" + str(id)
     # use the session to get the data
     r = session.get(url)
     print("got session")
     # Render the page, up the number on scrolldown to page down multiple times on a page
-    r.html.render(sleep=1, keep_page=True, scrolldown=1)
+    r.html.render()
     print("html rendered")
     soup = bs.BeautifulSoup(r.content, 'html.parser')
 
@@ -154,20 +153,27 @@ def uploadToFirebase(job):
 
 #For testing purposes
 # https://www.jobbank.gc.ca/jobsearch/jobposting/32606863
-# scrape_job_page("https://www.jobbank.gc.ca/jobsearch/jobposting/32645684")
+# scrape_job_page("https://www.jobbank.gc.ca/jobsearch/jobposting/32646181")
 # scrape_job_page("https://www.jobbank.gc.ca/jobsearch/jobposting/32606884")
 # create the session
 
 if __name__ == "__main__":
-    with open("index.csv") as csvfile:
-        readCSV = csv.reader(csvfile, delimiter=",")
-        count = 0
-        for row in readCSV:
-            count += 1
-            print(count)
+    with open("newJobs.json", 'r') as f:
+        jobIds = json.load(f)
 
-            try:
-                scrape_job_page(row[0])
-            except Exception as e:
-                print(e)
+    for jobId in jobIds:
+        print(jobId)
+        # scrape_job_page(job)
+
+    # with open("index.csv") as csvfile:
+    #     readCSV = csv.reader(csvfile, delimiter=",")
+    #     count = 0
+    #     for row in readCSV:
+    #         count += 1
+    #         print(count)
+    #
+    #         try:
+    #             scrape_job_page(row[0])
+    #         except Exception as e:
+    #             print(e)
 

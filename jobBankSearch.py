@@ -2,7 +2,8 @@
 import bs4 as bs
 from selenium import webdriver
 import time
-import csv
+import json
+
 
 province = "QC"
 url = "https://www.jobbank.gc.ca/jobsearch/jobsearch?sort=M&fprov=QC"
@@ -36,21 +37,39 @@ def scrapeJob(url):
     soup = bs.BeautifulSoup(driver.page_source, 'html.parser')
     js_test = soup.find_all('article')
 
-    jobTitles = []
+    jobIds = []
 
     for i,element in enumerate(js_test):
-        jobId = element.get("id")[-8:]
-        jobUrl = "https://www.jobbank.gc.ca/jobsearch/jobposting/" + jobId
-        jobTitles.append(jobUrl)
+        jobId = int(element.get("id")[-8:])
+        jobIds.append(jobId)
 
 
-    print(len(jobTitles))
+    print(len(jobIds))
 
-    for i, job in enumerate(jobTitles):
+    for i, job in enumerate(jobIds):
         print(job)
-        with open("index.csv", "a") as csv_file:
-            writer = csv.writer(csv_file)
-            writer.writerow([job])
+
+        #Iterating over the current database of jobs, removing all jobs that are already on the database
+        # with open("jobs.json", 'r') as f:
+        #     oldJobIds = json.load(f)
+        #     for id in jobIds:
+        #         if id in oldJobIds:
+        #             jobIds.remove(id)
+
+
+        #Overwriting the newJobs.json with jobs that aren't on the database
+        with open("newJobs.json", 'w') as file:
+            # indent=2 is not needed but makes the file
+            # human-readable for more complicated data
+            json.dump(jobIds, file, indent=2)
+
+        #Appending the current jobs database
+        with open("jobs.json", 'a') as file:
+            # indent=2 is not needed but makes the file
+            # human-readable for more complicated data
+            json.dump(jobIds, file, indent=2)
+
+
 
 if __name__ == '__main__':
     scrapeJob(url)

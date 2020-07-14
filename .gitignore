@@ -16,6 +16,7 @@ chrome-profiler-events*.json
 speed-measure-plugin*.json
 
 # IDEs and editors
+/__pycache__
 /.idea
 .project
 .classpath
@@ -48,3 +49,6 @@ Thumbs.db
 
 # API Keys
 /service-account.json
+
+#python stuff
+/__pycache__

@@ -1,33 +1,37 @@
-from requests_html import HTMLSession
+from requests_html import AsyncHTMLSession
 import bs4 as bs
 from google.cloud import firestore
 import os
 from jobObject import Job
 from datetime import datetime
 import json
+import clearbit
 
 
 # Initializing a Cloud firestore session with service account keys
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./service-account.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/stevengong/Projects/matilda-scrapper/service-account.json"
 db = firestore.Client()
 
+#Key for clearbit
+clearbit.key = "sk_b090d8a5dbb79e5c1a5d055635543d2b"
+
 #Initializing a session for web scraping
-session = HTMLSession()
+session = AsyncHTMLSession()
 
 
-def scrape_job_page(id):
-    url = "https://www.jobbank.gc.ca/jobsearch/jobposting/" + str(id)
+async def scrape_job_page():
     # use the session to get the data
-    r = session.get(url)
-    print("got session")
+    r = await session.get(url)
     # Render the page, up the number on scrolldown to page down multiple times on a page
-    r.html.render()
-    print("html rendered")
+    await r.html.arender()
     soup = bs.BeautifulSoup(r.content, 'html.parser')
 
 
     #Standard, formatted data
-    title = soup.find("span", property="title").text.strip()
+    try:
+        title = soup.find("span", property="title").text.strip()
+    except: #If there is an error, it means the job has expired
+        return
     company = soup.find("span", property="hiringOrganization").text.strip()
     employmentType = soup.find("span", property="employmentType").get_text(separator=", ").strip()
     location = soup.find("span", property="jobLocation").text.strip().replace("\n"," ").replace("\t","")
@@ -41,7 +45,50 @@ def scrape_job_page(id):
 
     try:
         baseSalary = soup.find("span", property="baseSalary").text.strip().replace("HOUR","").replace("$$","$").replace("YEAR","").replace("WEEKLY","")
+        #Formatting the salary into integers so it can be queried later on (salary is either provided hourly, weekly or yearly)
+        if "hourly" in baseSalary:
+            salaryType = "hourly"
+            if "to" in baseSalary:
+                #Take the average of the range
+                baseSalary = (float(baseSalary[1:6])+float(baseSalary[11:16]))/2
+            else:
+                baseSalary = float(baseSalary[1:6])
+
+        elif "weekly" in baseSalary:
+            salaryType = "weekly"
+            if "to" in baseSalary:
+                baseSalary = (float(baseSalary[1:4])+float(baseSalary[9:12]))/2
+            else:
+                baseSalary = float(baseSalary[1:4])
+
+        elif "monthly" in baseSalary:
+            salaryType = "monthly"
+            if "to" in baseSalary:
+                baseSalary = (float(baseSalary[1:4])+float(baseSalary[9:12]))/2
+            else:
+                baseSalary = float(baseSalary[1:4])
+
+        elif "yearly" or "annually" in baseSalary:
+            salaryType = "yearly"
+            if "to" in baseSalary:
+                #Take the average of the range
+                if len(baseSalary) == 27: #ex: '$38,400 to $40,000 annually'
+                    baseSalary = (float(baseSalary[1:7].replace(",",""))+float(baseSalary[12:18].replace(",","")))/2
+
+                elif len(baseSalary) == 28: #ex: '$88,400 to $140,000 annually'
+                    baseSalary = (float(baseSalary[1:7].replace(",",""))+float(baseSalary[12:19].replace(",","")))/2
+
+                elif len(baseSalary) == 29: #ex: '$138,400 to $140,000 annually'
+                    baseSalary = (float(baseSalary[1:8].replace(",",""))+float(baseSalary[13:20].replace(",","")))/2
+
+
+            else:
+                baseSalary = float(baseSalary[1:7])
+
+
+
     except:
+        salaryType = None
         baseSalary = None
 
     try:
@@ -111,8 +158,8 @@ def scrape_job_page(id):
             description = None
 
     #Uploading to firebase
-    job = Job(title, company, baseSalary, workHours, employmentType, location, datePosted, advertisedUntil, jobUrl)
-    print("Job initialized")
+    logo = findCompanyLogo(company)
+    job = Job(title, company, salaryType, baseSalary, workHours, employmentType, location, datePosted, advertisedUntil, jobUrl, logo)
     if containsDescription:
         job.description = description
         job.language = language
@@ -125,15 +172,19 @@ def scrape_job_page(id):
     if containsSpecialCommitments:
         job.specialCommitments = specialCommitments
 
-    print("trying to upload to FB")
     uploadToFirebase(job)
     print("job uploaded:", title)
 
 
 
+def findCompanyLogo(company):
+    response = clearbit.NameToDomain.find(name=company)
+    return response["logo"]
+
 def uploadToFirebase(job):
     data = {'title': job.title,
             'company': job.company,
+            "salaryType": job.salaryType,
             "baseSalary": job.baseSalary,
             "workHours": job.workHours,
             "location": job.location,
@@ -141,13 +192,15 @@ def uploadToFirebase(job):
             "datePosted": job.datePosted,
             "advertisedUntil": job.advertisedUntil,
             "url": job.url,
+            "logo": job.logo,
             'description': job.description,
             "language": job.language,
             "educationRequirements": job.educationRequirements,
             "experienceRequirements": job.experienceRequirements,
-            "employmentGroup": job.employmentGroup
+            "employmentGroup": job.employmentGroup,
+            "employmentType": job.employmentType
             }
-    # db.collection("jobs").add(data)
+    db.collection("jobs").add(data)
 
     #Uploading to firebase
 
@@ -158,22 +211,18 @@ def uploadToFirebase(job):
 # create the session
 
 if __name__ == "__main__":
-    with open("newJobs.json", 'r') as f:
-        jobIds = json.load(f)
+    for i in range(150):
+        with open("/Users/stevengong/Projects/matilda-scrapper/newJobs.json", 'r') as f:
+            jobIds = json.load(f)
 
-    for jobId in jobIds:
-        print(jobId)
-        # scrape_job_page(job)
+        jobId = jobIds[0]
+        url = "https://www.jobbank.gc.ca/jobsearch/jobposting/" + str(jobId)
+        session.run(scrape_job_page)
 
-    # with open("index.csv") as csvfile:
-    #     readCSV = csv.reader(csvfile, delimiter=",")
-    #     count = 0
-    #     for row in readCSV:
-    #         count += 1
-    #         print(count)
-    #
-    #         try:
-    #             scrape_job_page(row[0])
-    #         except Exception as e:
-    #             print(e)
+        with open("/Users/stevengong/Projects/matilda-scrapper/newJobs.json", 'w') as f:
+            json.dump(jobIds[1:], f, indent=2)
+
+
+
+
 

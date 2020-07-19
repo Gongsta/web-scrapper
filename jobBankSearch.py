@@ -46,28 +46,25 @@ def scrapeJob(url):
 
     print(len(jobIds))
 
-    for i, job in enumerate(jobIds):
-        print(job)
 
-        #Iterating over the current database of jobs, removing all jobs that are already on the database
-        # with open("jobs.json", 'r') as f:
-        #     oldJobIds = json.load(f)
-        #     for id in jobIds:
-        #         if id in oldJobIds:
-        #             jobIds.remove(id)
+    #Iterating over the current database of jobs, removing all jobs that are already on the database
+    with open("/Users/stevengong/Projects/matilda-scrapper/jobs.json", 'r') as f:
+        oldJobIds = json.load(f)
+        for id in jobIds:
+            if id in oldJobIds:
+                jobIds.remove(id)
+        allJobs = oldJobIds + jobIds
 
-
-        #Overwriting the newJobs.json with jobs that aren't on the database
-        with open("newJobs.json", 'w') as file:
+    #Overwriting the newJobs.json with jobs that aren't on the database
+    with open("/Users/stevengong/Projects/matilda-scrapper/newJobs.json", 'w') as file:
             # indent=2 is not needed but makes the file
             # human-readable for more complicated data
-            json.dump(jobIds, file, indent=2)
+        json.dump(jobIds, file, indent=2)
 
         #Appending the current jobs database
-        with open("jobs.json", 'a') as file:
-            # indent=2 is not needed but makes the file
-            # human-readable for more complicated data
-            json.dump(jobIds, file, indent=2)
+
+    with open("/Users/stevengong/Projects/matilda-scrapper/jobs.json","w") as file:
+        json.dump(allJobs, file, indent=2)
 
 
 

@@ -2,7 +2,7 @@
 from crontab import CronTab
 cron = CronTab(user=True)
 job = cron.new(command='/opt/miniconda3/bin/python /Users/stevengong/Projects/matilda-scrapper/jobBankSpecificJob.py')
-job.minute.every(10)
+job.minute.every(1)
 
 #Run job every 24 hours
 # job2 = cron.new(command='/opt/miniconda3/bin/python /Users/stevengong/Projects/matilda-scrapper/jobBankSearch.py')

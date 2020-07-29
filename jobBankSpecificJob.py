@@ -33,7 +33,10 @@ async def scrape_job_page():
     except: #If there is an error, it means the job has expired
         return
     company = soup.find("span", property="hiringOrganization").text.strip()
-    employmentType = soup.find("span", property="employmentType").get_text(separator=", ").strip()
+    try:
+        employmentType = soup.find("span", property="employmentType").get_text(separator=", ").strip()
+    except:
+        employmentType = None
     location = soup.find("span", property="jobLocation").text.strip().replace("\n"," ").replace("\t","")
     #Converting string date to datetime date
     datePosted = datetime.strptime(soup.find("span", property="datePosted").text.strip()[10:], "%B %d, %Y")
@@ -178,8 +181,14 @@ async def scrape_job_page():
 
 
 def findCompanyLogo(company):
-    response = clearbit.NameToDomain.find(name=company)
-    return response["logo"]
+    try:
+        response = clearbit.NameToDomain.find(name=company)
+    except:
+        return None
+    if response == None:
+        return None
+    else:
+        return response["logo"]
 
 def uploadToFirebase(job):
     data = {'title': job.title,
@@ -200,7 +209,7 @@ def uploadToFirebase(job):
             "employmentGroup": job.employmentGroup,
             "employmentType": job.employmentType
             }
-    db.collection("jobs").add(data)
+    db.collection("jobs").document(str(jobId)).set(data)
 
     #Uploading to firebase
 
@@ -217,7 +226,9 @@ if __name__ == "__main__":
 
         jobId = jobIds[0]
         url = "https://www.jobbank.gc.ca/jobsearch/jobposting/" + str(jobId)
+
         session.run(scrape_job_page)
+
 
         with open("/Users/stevengong/Projects/matilda-scrapper/newJobs.json", 'w') as f:
             json.dump(jobIds[1:], f, indent=2)

@@ -6,7 +6,7 @@ import json
 
 
 province = "QC"
-url = "https://www.jobbank.gc.ca/jobsearch/jobsearch?sort=M&fprov=QC"
+url = "https://www.jobbank.gc.ca/jobsearch/jobsearch?sort=M&fprov=ON"
 
 #For Mac - If you use windows change the chromedriver location
 chrome_path = '/usr/local/bin/chromedriver'
